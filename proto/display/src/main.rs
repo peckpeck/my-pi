@@ -4,7 +4,7 @@ use std::thread::sleep;
 
 // row and column pins in BCM format
 const ROW: [u8; 7] = [ 21, 20, 16, 26, 19,13, 6 ];
-const COL: [u8; 7] = [ 1, 7, 8, 25, 11, 9, 10 ];
+const COL: [u8; 7] = [ 10, 9, 11, 25, 8, 7, 1 ];
 // we use u8 for bit because it is more visual and easy to edit than bool
 const PINS_0: [u8; 7] = [ 1, 1, 1, 0, 1, 1, 1 ];
 const PINS_1: [u8; 7] = [ 0, 0, 1, 0, 1, 0, 0 ];
@@ -18,9 +18,21 @@ const PINS_8: [u8; 7] = [ 1, 1, 1, 1, 1, 1, 1 ];
 const PINS_9: [u8; 7] = [ 1, 1, 1, 1, 1, 0, 1 ];
 const PINS_X: [u8; 7] = [ 1, 1, 0, 1, 0, 1, 1 ];
 
+enum TimeOption {
+    HasAlarm,
+    HasNoAlarm,
+    EnableAlarm,
+    DisableAlarm,
+    Error(u8),
+}
+
 struct Display {
     pins_row: [OutputPin; 7],
     pins_col: [OutputPin; 7],
+    digits: [u8; 4],
+    has_alarm: bool,
+    alarm_enabled: bool,
+    error: u8,
 }
 
 impl Display {
@@ -48,16 +60,10 @@ impl Display {
             pins_row[i].set_low();
         }
 
-        Ok(Display { pins_row, pins_col })
+        Ok(Display { pins_row, pins_col, digits: [0,0,0,0], has_alarm: false, alarm_enabled: true, error: 0 })
     }
 
-    fn set_list_high(&mut self, pin_list: Vec<u8>) {
-        for i in pin_list {
-            self.pins_col[0].set_low();
-        }
-    }
-
-    fn set_digit(&mut self, value: u8, pos: usize) {
+    fn show_digit(&mut self, value: u8, pos: usize) {
         self.pins_col[pos].set_low();
         let pin_list = match value {
             0 => PINS_0,
@@ -79,21 +85,79 @@ impl Display {
         }
     }
 
+    fn show_colon(&mut self) {
+        self.pins_col[3].set_low();
+        self.pins_row[1].set_high();
+        self.pins_row[5].set_high();
+    }
+
+    fn show_left_opts(&mut self) {
+        // left opts are alarm related
+        self.pins_col[1].set_low();
+        if self.has_alarm { self.pins_row[5].set_high(); }
+        if !self.alarm_enabled { self.pins_row[1].set_high(); }
+    }
+
+    fn show_right_opts(&mut self) {
+        // right opts are error related
+        self.pins_col[5].set_low();
+        let err = if self.error < 16 { self.error } else { 15 };
+        if err % 2 == 1 { self.pins_row[5].set_high(); }
+        if (err/2) % 2 == 1 { self.pins_row[4].set_high(); }
+        if (err/4) % 2 == 1 { self.pins_row[2].set_high(); }
+        if (err/8) % 2 == 1 { self.pins_row[1].set_high(); }
+    }
+
     fn clear_col(&mut self, pos: usize) {
         self.pins_col[pos].set_high();
         for i in 0..7 {
             self.pins_row[i].set_low();
         }
     }
+    
+    pub fn set_time(&mut self, hours: i32, minutes: i32) {
+        self.digits[0] = (hours / 10) as u8;
+        self.digits[1] = (hours % 10) as u8;
+        self.digits[2] = (minutes / 10) as u8;
+        self.digits[3] = (minutes % 10) as u8;
+    }
+
+    pub fn set_opts(&mut self, option: TimeOption) {
+        match option {
+            TimeOption::HasAlarm => self.has_alarm = true,
+            TimeOption::HasNoAlarm => self.has_alarm = false,
+            TimeOption::EnableAlarm => self.alarm_enabled = true,
+            TimeOption::DisableAlarm => self.alarm_enabled = false,
+            TimeOption::Error(e) => self.error = e,
+        }
+    }
+
+    pub fn show(&mut self, us_per_col: u64) {
+        for i in 0..4 {
+            let pos = 2*i;
+            self.show_digit(self.digits[i], pos);
+            sleep(Duration::from_micros(us_per_col));
+            self.clear_col(pos);
+        }
+        self.show_colon();
+        sleep(Duration::from_micros(us_per_col));
+        self.clear_col(3);
+        self.show_left_opts();
+        sleep(Duration::from_micros(us_per_col));
+        self.clear_col(1);
+        self.show_right_opts();
+        sleep(Duration::from_micros(us_per_col));
+        self.clear_col(5);
+    }
 }
 
 fn main() {
     let gpio = Gpio::new().unwrap();
     let mut display = Display::new(&gpio).unwrap();
-    for i in 0..11 {
-        display.set_digit(i,0);
-        sleep(Duration::from_secs(2));
-        display.clear_col(0);
+    display.set_time(12,34);
+    display.set_opts(TimeOption::HasAlarm);
+    display.set_opts(TimeOption::Error(3));
+    loop {
+        display.show(1000);
     }
-    sleep(Duration::from_secs(2));
 }

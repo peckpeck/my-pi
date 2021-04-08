@@ -17,6 +17,8 @@ use std::time::*;
  *            vv  |
  *
  *
+ *  7 segments: 
+ *
  */
 
 // row and column pins in BCM format
@@ -34,14 +36,6 @@ const PINS_7: [u8; 7] = [1, 0, 1, 0, 1, 0, 0];
 const PINS_8: [u8; 7] = [1, 1, 1, 1, 1, 1, 1];
 const PINS_9: [u8; 7] = [1, 1, 1, 1, 1, 0, 1];
 const PINS_X: [u8; 7] = [1, 1, 0, 1, 0, 1, 1];
-
-pub enum TimeOption {
-    HasAlarm,
-    HasNoAlarm,
-    EnableAlarm,
-    DisableAlarm,
-    Error(u8),
-}
 
 pub struct DisplayData {
     pub hours: u8,

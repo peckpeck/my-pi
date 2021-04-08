@@ -2,7 +2,6 @@ use chrono::Local;
 use std::sync::mpsc;
 use std::sync::mpsc::channel;
 use std::thread;
-use std::thread::sleep;
 use std::time::*;
 use std::sync::{Arc, Mutex};
 
@@ -35,7 +34,7 @@ fn keys_thread(tx: mpsc::Sender<Button>, gpio: Arc<Gpio>) {
     let mut keys = Keys::new(gpio).unwrap();
     loop {
         // wait for key event
-        // read key via sleeps
+        // read key via wait on condo charge
         match keys.poll_button() {
             Err(e) => println!("Error {:?}", e),
             Ok(None) => println!("no button"), 

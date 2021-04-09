@@ -1,27 +1,36 @@
-use chrono::Local;
 use std::sync::mpsc;
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::*;
 use std::sync::{Arc, Mutex};
-
+use chrono::Local;
 use rppal::gpio::Gpio;
+
 mod display;
-use display::*;
 mod keys;
+mod ceiling;
+mod clock_data;
+
+use display::*;
 use keys::*;
+use clock_data::*;
+use ceiling::*;
 
 fn main() {
     // init
     let (key_tx, main_rx) = channel();
     let gpio = Arc::new(Gpio::new().unwrap());
-    let display_data = Arc::new(Mutex::new(DisplayData::new()));
+    let display_data = Arc::new(Mutex::new(ClockData::new()));
+    let mut ceiling = Ceiling::new(gpio.clone(), display_data.clone()).unwrap();
+    update_time(&display_data);
+    display_data.lock().unwrap().ceiling_upwards = false;
+    ceiling.set_time();
 
     // spawn threads
     let ddt = display_data.clone();
     let gpio2 = gpio.clone();
-    thread::spawn(move || led_display_thread(gpio2, ddt));
-    thread::spawn(move || keys_thread(key_tx, gpio));
+    //thread::spawn(move || led_display_thread(gpio2, ddt));
+    //thread::spawn(move || keys_thread(key_tx, gpio));
     main_thread(main_rx, display_data);
 }
 
@@ -44,15 +53,7 @@ fn keys_thread(tx: mpsc::Sender<Button>, gpio: Arc<Gpio>) {
     }
 }
 
-fn update_time(display_data: &Arc<Mutex<DisplayData>>) {
-    let time = Local::now();
-    let mut data = display_data.lock().unwrap();
-    // didn't find a better way to get an integer
-    data.hours = time.format("%H").to_string().parse::<u8>().unwrap();
-    data.minutes = time.format("%M").to_string().parse::<u8>().unwrap();
-}
-
-fn led_display_thread(gpio: Arc<Gpio>, display_data: Arc<Mutex<DisplayData>>) {
+fn led_display_thread(gpio: Arc<Gpio>, display_data: Arc<Mutex<ClockData>>) {
     let time = Local::now();
     println!("Time = {}", time.format("%H:%M:%S"));
     update_time(&display_data);
@@ -62,15 +63,30 @@ fn led_display_thread(gpio: Arc<Gpio>, display_data: Arc<Mutex<DisplayData>>) {
     }
 }
 
-fn main_thread(rx: mpsc::Receiver<Button>, display_data: Arc<Mutex<DisplayData>>) {
+fn update_time(display_data: &Arc<Mutex<ClockData>>) {
+    let time = Local::now();
+    let mut data = display_data.lock().unwrap();
+    // didn't find a better way to get an integer
+    data.hours = time.format("%H").to_string().parse::<u8>().unwrap();
+    data.minutes = time.format("%M").to_string().parse::<u8>().unwrap();
+}
+
+fn main_thread(rx: mpsc::Receiver<Button>, display_data: Arc<Mutex<ClockData>>) {
     // wait for event : key, timeout
-    // keys : snooze
-    // keys : stop / start sound
-    // keys : vol +
-    // keys : vol -
-    // keys : refresh
-    // keys : disable alarm
-    // keys : enable alarm
+    //
+    // key snooze : snooze
+    // key OnOff: stop / start audio
+    // key spkr+/- : vol +/-
+    // key time : enable/disable alarm
+    // key left/rght: change channel 
+    // key B1 : special mode (+led)
+    // key B2 : special mode 2 ?
+    //
+    // special key time : enable/disable ceiling
+    // special key left/right : dimm + / -
+    // special key : refresh
+    // special key B1 : normal mode (or wait 1mn)
+    // 
     // timeout : update rwlock time
     // timeout : update top clock
     // timeout : run radio / fallback

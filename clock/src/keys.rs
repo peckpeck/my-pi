@@ -98,7 +98,6 @@ impl Keys {
         let resistor1 = self.measure_resistor(keys);
         self.discharge();
         let resistor2 = self.measure_resistor(keys);
-        println!("resistor1 {:?}, resistor2 {:?}", resistor1, resistor2);
         let resistor = average(resistor1, resistor2)?;
     
         // wait for release
@@ -121,20 +120,19 @@ impl Keys {
     #[rustfmt::skip]
     fn detect_button(&mut self, keys: usize) -> Option<Button> {
         let (resistor, time) = self.measure_push(keys)?;
-        println!("Pushed {} for {} ms", &resistor, &time);
         if keys == 0 {
                  if in_range(resistor,1700) { Some(Button::Right) } 
             else if in_range(resistor, 850) { Some(Button::Left) }
             else if in_range(resistor, 200) { Some(Button::SpkrHigh) }
             else if in_range(resistor,  15) { Some(Button::SpkrLow) }
-            else { println!("resistor {}", resistor); None}
+            else { println!("resistor {} unknown on line 0", resistor); None}
         } else {
                  if in_range(resistor, 4300) { Some(Button::B2) }
             else if in_range(resistor, 1900) { Some(Button::B1) }
             else if in_range(resistor,  950) { Some(Button::Snooze) }
             else if in_range(resistor,  250) { Some(Button::Time) }
             else if in_range(resistor,   15) { Some(Button::OnOff) }
-            else { println!("resistor {}", resistor); None }
+            else { println!("resistor {} unknown on line 1", resistor); None }
         }
     }
 
@@ -151,7 +149,6 @@ impl Keys {
                 Some((pin, _)) => if pin == pin0 { 0 } else { 1 }
             }
         };
-        println!("interrupted by {}", keys);
         Ok(self.detect_button(keys))
     }
 }

@@ -73,6 +73,13 @@ impl Ceiling {
         self.write_sequence(&data);
     }
 
+    pub fn set_light(&mut self) {
+        let ddt = self.display_data.lock().unwrap();
+        let level = ddt.ceiling_dim as f64;
+        let frequency = ddt.refresh_rate as f64;
+        self.led.set_pwm_frequency(frequency, level/100.);
+    }
+
     fn write_sequence(&mut self, bits: &[u8]) {
         self.line.set_low();
         sleep(UP_DURATION);

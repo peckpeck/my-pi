@@ -1,6 +1,7 @@
 use std::sync::mpsc;
 use std::sync::mpsc::channel;
 use std::thread;
+use std::thread::sleep;
 use std::time::*;
 use std::sync::{Arc, Mutex};
 use chrono::Local;
@@ -10,17 +11,19 @@ mod display;
 mod keys;
 mod ceiling;
 mod clock_data;
+mod player;
 
 use display::*;
 use keys::*;
 use clock_data::*;
 use ceiling::*;
+use player::*;
 
 fn main() {
     // init
     let (key_tx, main_rx) = channel();
-    let gpio = Arc::new(Gpio::new().unwrap());
     let display_data = Arc::new(Mutex::new(ClockData::new()));
+    let gpio = Arc::new(Gpio::new().unwrap());
     let mut ceiling = Ceiling::new(gpio.clone(), display_data.clone()).unwrap();
     update_time(&display_data);
     display_data.lock().unwrap().ceiling_upwards = false;
@@ -29,8 +32,8 @@ fn main() {
     // spawn threads
     let ddt = display_data.clone();
     let gpio2 = gpio.clone();
-    //thread::spawn(move || led_display_thread(gpio2, ddt));
-    //thread::spawn(move || keys_thread(key_tx, gpio));
+    thread::spawn(move || led_display_thread(gpio2, ddt));
+    thread::spawn(move || keys_thread(key_tx, gpio));
     main_thread(main_rx, display_data);
 }
 

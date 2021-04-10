@@ -1,3 +1,5 @@
+use crate::player::Player;
+
 /* On main led 7 segments
  *    0
  *   --
@@ -38,9 +40,11 @@ pub struct ClockData {
     pub has_alarm: bool,
     pub alarm_enabled: bool,
     pub error: u8,
-    pub dim: u8,           // percentage
-    pub refresh_rate: u32, // hertz
+    pub regular_dim: u8,   // percentage
+    pub refresh_rate: u32, // hertz (regular 7 segments and ceiling led)
+    pub ceiling_dim: u8,   // percentage
     pub ceiling_upwards: bool,
+    pub player: Option<Player>,
 }
 
 impl ClockData {
@@ -51,9 +55,11 @@ impl ClockData {
             has_alarm: false,
             alarm_enabled: true,
             error: 0,
-            dim: 50,
+            regular_dim: 50,
             refresh_rate: 100,
+            ceiling_dim: 50,
             ceiling_upwards: true,
+            player: None,
         }
     }
 
@@ -65,7 +71,6 @@ impl ClockData {
             3 => (self.minutes % 10) as u8,
             _ => 10,
         };
-        println!("digit {}",value);
         match value {
             0 => PINS_0,
             1 => PINS_1,
@@ -141,9 +146,9 @@ impl ClockData {
 
     pub fn pwm_time(&self, up: bool) -> u64 {
         let pct = if up {
-            self.dim as u64
+            self.regular_dim as u64
         } else {
-            100 - self.dim as u64
+            100 - self.regular_dim as u64
         };
         return (1_000_000 / self.refresh_rate as u64) * pct / 100;
     }

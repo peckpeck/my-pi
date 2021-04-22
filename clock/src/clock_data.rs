@@ -44,7 +44,7 @@ pub struct ClockData {
     pub refresh_rate: u32, // hertz (regular 7 segments and ceiling led)
     pub ceiling_dim: u8,   // percentage
     pub ceiling_upwards: bool,
-    pub player: Option<Player>,
+    pub player: Player,
 }
 
 impl ClockData {
@@ -59,7 +59,7 @@ impl ClockData {
             refresh_rate: 100,
             ceiling_dim: 50,
             ceiling_upwards: true,
-            player: None,
+            player: Player::new(),
         }
     }
 

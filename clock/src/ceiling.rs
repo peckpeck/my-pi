@@ -54,7 +54,7 @@ impl Ceiling {
     pub fn set_time(&mut self) {
         let mut data = [0; 41];
         {
-            let ddt = self.display_data.lock().unwrap();
+            let ddt = self.display_data.lock().expect("poisoned mutex 1");
             let order = if ddt.ceiling_upwards {
                 [ 0, 1, 2, 3 ]
             } else {
@@ -74,7 +74,7 @@ impl Ceiling {
     }
 
     pub fn set_light(&mut self) {
-        let ddt = self.display_data.lock().unwrap();
+        let ddt = self.display_data.lock().expect("poisoned mutex 2");
         let level = ddt.ceiling_dim as f64;
         let frequency = ddt.refresh_rate as f64;
         self.led.set_pwm_frequency(frequency, level/100.);

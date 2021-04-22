@@ -13,17 +13,22 @@ static urls: [&str; 1] = [
 
 
 pub struct Player {
-    process: Child,
+    // show must go on, so if there is a problem we still have 
+    // a player structure without the process
+    process: Option<Child>,
     current: usize,
 }
 
 impl Player {
-    pub fn new() -> Result<Self> {
-        let mut child = Player::spawn()?;
-        let mut myself = Self { process: child, current: 0 };
-        myself.send_command("volume 256")?;
-        myself.init()?;
-        Ok(myself)
+    pub fn new() -> Self {
+        Player { process: None, current: 0 }
+    }
+
+    pub fn init(&mut self) -> Result<()> {
+        self.process = Some(Player::spawn()?);
+        self.send_command("volume 256")?;
+        self.setup()?;
+        Ok(())
     }
 
     pub fn change_url(&mut self, next: bool) -> Result<()> {
@@ -64,15 +69,18 @@ impl Player {
     }
 
     fn alive(&mut self) -> Result<()> {
-        match self.process.try_wait()? {
-            Some(_) => self.respawn(),
-            None => Ok(()),
+        match self.process {
+            None => self.init(),
+            Some(ref mut p) => match p.try_wait()? {
+                Some(_) => self.respawn(),
+                None => Ok(()),
+            }
         }
     }
 
     fn respawn(&mut self) -> Result<()> {
-        self.process = Player::spawn()?;
-        self.init()
+        self.process = Some(Player::spawn()?);
+        self.setup()
     }
 
     fn requeue(&mut self, play: bool) -> Result<()> {
@@ -84,14 +92,18 @@ impl Player {
         self.send_command(&cmd)
     }
 
-    fn init(&mut self) -> Result<()> {
+    fn setup(&mut self) -> Result<()> {
         sleep(Duration::from_millis(300));
         self.requeue(false)?;
         self.send_command("loop on")
     }
 
     fn send_command(&mut self, command: &str) -> Result<()> {
-        let stdin = self.process.stdin.as_mut().expect("Failed to open stdin");
+        let process = match self.process {
+            Some(ref mut p) => p,
+            None => return Err(std::io::Error::last_os_error()),
+        };
+        let stdin = process.stdin.as_mut().expect("Failed to open stdin");
         let cmd = format!("{}\n", command);
         println!("Sending {}", command);
         stdin.write_all(cmd.as_bytes())?;

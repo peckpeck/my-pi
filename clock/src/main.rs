@@ -1,7 +1,6 @@
 use std::sync::mpsc;
 use std::sync::mpsc::channel;
 use std::thread;
-use std::thread::sleep;
 use std::time::*;
 use std::sync::{Arc, Mutex};
 use chrono::Local;
@@ -23,10 +22,10 @@ fn main() {
     // init
     let (key_tx, main_rx) = channel();
     let display_data = Arc::new(Mutex::new(ClockData::new()));
-    let gpio = Arc::new(Gpio::new().unwrap());
+    let gpio = Arc::new(Gpio::new().expect("Cannot open gpio"));
     let mut ceiling = Ceiling::new(gpio.clone(), display_data.clone()).unwrap();
     update_time(&display_data);
-    display_data.lock().unwrap().ceiling_upwards = false;
+    display_data.lock().expect("poisoned mutex 6").ceiling_upwards = false;
     ceiling.set_time();
 
     // spawn threads
@@ -60,7 +59,7 @@ fn led_display_thread(gpio: Arc<Gpio>, display_data: Arc<Mutex<ClockData>>) {
     let time = Local::now();
     println!("Time = {}", time.format("%H:%M:%S"));
     update_time(&display_data);
-    let mut display = LedDisplay::new(gpio, display_data).unwrap();
+    let mut display = LedDisplay::new(gpio, display_data).expect("Cannot open display");
     loop {
         display.show();
     }
@@ -68,10 +67,10 @@ fn led_display_thread(gpio: Arc<Gpio>, display_data: Arc<Mutex<ClockData>>) {
 
 fn update_time(display_data: &Arc<Mutex<ClockData>>) {
     let time = Local::now();
-    let mut data = display_data.lock().unwrap();
+    let mut data = display_data.lock().expect("poisoned mutex 7");
     // didn't find a better way to get an integer
-    data.hours = time.format("%H").to_string().parse::<u8>().unwrap();
-    data.minutes = time.format("%M").to_string().parse::<u8>().unwrap();
+    data.hours = time.format("%H").to_string().parse::<u8>().expect("invalid hour");
+    data.minutes = time.format("%M").to_string().parse::<u8>().expect("invalid minute");
 }
 
 fn main_thread(rx: mpsc::Receiver<Button>, display_data: Arc<Mutex<ClockData>>) {

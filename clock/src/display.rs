@@ -67,7 +67,7 @@ impl LedDisplay {
 
     fn show_col(&mut self, col: usize) {
         self.pins_col[col].set_low();
-        let pins = self.display_data.lock().unwrap().get_row_pins_led(col);
+        let pins = self.display_data.lock().expect("poisoned mutex 3").get_row_pins_led(col);
         for row in 0..7 {
             if pins[row] == 1 {
                 self.pins_row[row].set_high();
@@ -83,13 +83,13 @@ impl LedDisplay {
     }
 
     pub fn show(&mut self) {
-        let col_wait = Duration::from_micros(self.display_data.lock().unwrap().pwm_time(true) / 7);
+        let col_wait = Duration::from_micros(self.display_data.lock().expect("poisoned mutex 4").pwm_time(true) / 7);
         for col in 0..7 {
             self.show_col(col);
             sleep(col_wait);
             self.clear_col(col);
         }
-        let clear_wait = self.display_data.lock().unwrap().pwm_time(false);
+        let clear_wait = self.display_data.lock().expect("poisoned mutex 5").pwm_time(false);
         sleep(Duration::from_micros(clear_wait));
     }
 }

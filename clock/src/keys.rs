@@ -38,38 +38,39 @@ pub struct Keys {
 impl Keys {
     pub fn new(gpio: Arc<Gpio>) -> Result<Self> {
         let mut keys = Keys { gpio };
-        keys.discharge();
+        keys.discharge()?;
         return Ok(keys);
     }
 
-    fn get_input_nopull(&self, keys: usize) -> InputPin {
-        let mut pin = self.gpio.get(KEY_PIN[keys]).unwrap().into_input();
+    fn get_input_nopull(&self, keys: usize) -> Result<InputPin> {
+        let mut pin = self.gpio.get(KEY_PIN[keys])?.into_input();
         pin.set_reset_on_drop(false);
-        return pin;
+        return Ok(pin);
     }
 
-    fn get_input_pulldown(&self, keys: usize) -> InputPin {
-        let mut pin = self.gpio.get(KEY_PIN[keys]).unwrap().into_input_pulldown();
+    fn get_input_pulldown(&self, keys: usize) -> Result<InputPin> {
+        let mut pin = self.gpio.get(KEY_PIN[keys])?.into_input_pulldown();
         pin.set_reset_on_drop(false);
-        return pin;
+        return Ok(pin);
     }
 
-    fn get_output(&self, keys: usize) -> OutputPin {
-        let mut pin = self.gpio.get(KEY_PIN[keys]).unwrap().into_output();
+    fn get_output(&self, keys: usize) -> Result<OutputPin> {
+        let mut pin = self.gpio.get(KEY_PIN[keys])?.into_output();
         pin.set_reset_on_drop(false);
-        return pin;
+        return Ok(pin);
     }
 
-    fn discharge(&mut self) {
+    fn discharge(&mut self) -> Result<()> {
         // we must discharge both, otherwise they recharge each other when circuit is open
-        self.get_output(0).set_low();
-        self.get_output(1).set_low();
+        self.get_output(0)?.set_low();
+        self.get_output(1)?.set_low();
         // approx discharge time <1ms (220nF)
         sleep(Duration::from_millis(DISCHARGE_MS));
+        Ok(())
     }
 
-    fn measure_resistor(&mut self, keys: usize) -> Option<u128> {
-        let pin = self.get_input_nopull(keys);
+    fn measure_resistor(&mut self, keys: usize) -> Result<Option<u128>> {
+        let pin = self.get_input_nopull(keys)?;
  
         let start = Instant::now();
         // wait for charge
@@ -81,28 +82,31 @@ impl Keys {
         }
         let duration = start.elapsed().as_micros();
         if duration > MAX_CHARGE_US {
-            None
+            Ok(None)
         } else {
-            Some(duration)
+            Ok(Some(duration))
         }
     }
 
-    fn measure_push(&mut self, keys: usize) -> Option<(u128,u128)> {
+    fn measure_push(&mut self, keys: usize) -> Result<Option<(u128,u128)>> {
         // detect fake push and let time for current to establish
         sleep(Duration::from_millis(1));
-        if self.get_input_pulldown(keys).is_low() { return None }
+        if self.get_input_pulldown(keys)?.is_low() { return Ok(None) }
     
         let start = Instant::now();
         // which button ?
-        self.discharge();
-        let resistor1 = self.measure_resistor(keys);
-        self.discharge();
-        let resistor2 = self.measure_resistor(keys);
-        let resistor = average(resistor1, resistor2)?;
+        self.discharge()?;
+        let resistor1 = self.measure_resistor(keys)?;
+        self.discharge()?;
+        let resistor2 = self.measure_resistor(keys)?;
+        let resistor = match average(resistor1, resistor2) {
+            Some(x) => x,
+            None => return Ok(None),
+        };
     
         // wait for release
         {
-            let pin = self.get_input_pulldown(keys);
+            let pin = self.get_input_pulldown(keys)?;
             let mut ms = 0;
             while pin.is_high() {
                 sleep(Duration::from_millis(1));
@@ -112,15 +116,18 @@ impl Keys {
         }
     
         let duration = start.elapsed().as_millis();
-        self.discharge();
+        self.discharge()?;
         
-        return Some((resistor, duration));
+        return Ok(Some((resistor, duration)));
     }
 
     #[rustfmt::skip]
-    fn detect_button(&mut self, keys: usize) -> Option<Button> {
-        let (resistor, time) = self.measure_push(keys)?;
-        if keys == 0 {
+    fn detect_button(&mut self, keys: usize) -> Result<Option<Button>> {
+        let (resistor, time) = match self.measure_push(keys)? {
+            Some(x) => x,
+            None => return Ok(None),
+        };
+        Ok(if keys == 0 {
                  if in_range(resistor,1700) { Some(Button::Right) } 
             else if in_range(resistor, 850) { Some(Button::Left) }
             else if in_range(resistor, 200) { Some(Button::SpkrHigh) }
@@ -133,13 +140,13 @@ impl Keys {
             else if in_range(resistor,  250) { Some(Button::Time) }
             else if in_range(resistor,   15) { Some(Button::OnOff) }
             else { println!("resistor {} unknown on line 1", resistor); None }
-        }
+        })
     }
 
     pub fn poll_button(&mut self) -> Result<Option<Button>> {
         let keys = {
-            let mut pin0 = self.get_input_pulldown(0);    
-            let mut pin1 = self.get_input_pulldown(1);    
+            let mut pin0 = self.get_input_pulldown(0)?;
+            let mut pin1 = self.get_input_pulldown(1)?;
             pin0.set_interrupt(Trigger::RisingEdge)?;
             pin1.set_interrupt(Trigger::RisingEdge)?;
             let pins = [&pin0, &pin1];
@@ -149,7 +156,7 @@ impl Keys {
                 Some((pin, _)) => if pin == pin0 { 0 } else { 1 }
             }
         };
-        Ok(self.detect_button(keys))
+        self.detect_button(keys)
     }
 }
 

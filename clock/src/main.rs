@@ -5,6 +5,7 @@ use std::time::*;
 use std::sync::{Arc, Mutex};
 use chrono::Local;
 use rppal::gpio::Gpio;
+use std::process::exit;
 
 mod display;
 mod keys;
@@ -98,7 +99,7 @@ fn main_thread(rx: mpsc::Receiver<Button>, display_data: Arc<Mutex<ClockData>>) 
         match rx.recv_timeout(timeout) {
             Ok(btn) => println!("button {:?}", btn),
             Err(mpsc::RecvTimeoutError::Timeout) => update_time(&display_data),
-            Err(_) => println!("Bork"),
+            Err(e) => { println!("Bork {:?}", e); exit(1); },
         }
     }
 }

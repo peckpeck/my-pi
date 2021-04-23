@@ -20,10 +20,10 @@ use crate::clock_data::*;
  *
  */ 
 
-const LED_PIN: u8 = 21; // LED
-const DATA_PIN: u8 = 27; // CLK   
-const CLOCK_PIN: u8 = 17; // WR
-const LINE_PIN: u8 = 4; // DATA2
+const LED_PIN: u8 = 15;  // LED
+const LINE_PIN: u8 = 14; // DATA2
+const CLOCK_PIN: u8 = 3; // WR
+const DATA_PIN: u8 = 2;  // CLK   
 
 static UP_DURATION: Duration = Duration::from_micros(10);
 static DOWN_DURATION: Duration = Duration::from_micros(5);
@@ -74,6 +74,8 @@ impl Ceiling {
     }
 
     pub fn set_light(&mut self) {
+        println!("remove");
+        self.led.set_high();
         let ddt = self.display_data.lock().expect("poisoned mutex 2");
         let level = ddt.ceiling_dim as f64;
         let frequency = ddt.refresh_rate as f64;

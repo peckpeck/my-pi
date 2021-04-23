@@ -24,8 +24,8 @@ use crate::clock_data::*;
  */
 
 // row and column pins in BCM format
-const ROW: [u8; 7] = [16, 13, 12, 6, 5, 7, 8];
-const COL: [u8; 7] = [22, 23, 24, 25, 10, 9, 11];
+const ROW: [u8; 7] = [20, 16, 13, 12, 6, 5, 7];
+const COL: [u8; 7] = [23, 24, 25, 10, 9, 11, 8];
 
 pub struct LedDisplay {
     pins_row: [OutputPin; 7],

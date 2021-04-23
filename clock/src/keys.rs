@@ -16,7 +16,7 @@ use std::sync::Arc;
  *
  */
 
-const KEY_PIN: [u8; 2] = [17, 21]; // 0 -> KEY0, 1 -> KEY1
+const KEY_PIN: [u8; 2] = [27, 22]; // 0 -> KEY0, 1 -> KEY1
 const MAX_PUSH_MS: u64 = 1000;
 const MAX_CHARGE_US: u128 = 6000;
 const DISCHARGE_MS: u64 = 10;
